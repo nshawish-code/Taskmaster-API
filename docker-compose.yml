@@ -2,7 +2,7 @@ version: "2"
 services:
   api:
     build: ./api
-    ports: ["3000:3000"]
+    ports: ["8080:3000"]
     env_file: .env.example
     depends_on: [mongo, worker]
   worker:
@@ -10,4 +10,4 @@ services:
     ports: ["5000:5000"]
     env_file: .env.example
   mongo:
-    image: mongo:3.6
+    image: mongo:4.4
