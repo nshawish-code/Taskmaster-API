@@ -32,20 +32,17 @@ jobs:
         working-directory: api
         run: npm install
 
+      - name: Install Snyk CLI
+        uses: snyk/actions/setup@master
+
       - name: Snyk SCA - npm
-        uses: snyk/actions/node@master
         working-directory: api
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: --file=package.json --severity-threshold=high
-
-      - name: Install Snyk CLI
-        if: always()
-        uses: snyk/actions/setup@master
+        run: |
+          snyk test --file=package.json --severity-threshold=high
 
       - name: Snyk SCA - pip
-        if: always()
         working-directory: worker
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
