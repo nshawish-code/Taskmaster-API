@@ -97,7 +97,7 @@ jobs:
         run: chmod -R 777 ${{ github.workspace }}
 
       - name: OWASP ZAP Baseline Scan
-        uses: zaproxy/action-baseline@v0.12.0
+        uses: zaproxy/action-baseline@master
         with:
           target: "http://localhost:8080"
           artifact_name: "zap-scan"
