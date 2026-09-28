@@ -13,6 +13,7 @@ jobs:
   supply-chain-analysis:
     name: Software Supply Chain Analysis
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,24 +26,25 @@ jobs:
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
-      - name: Generate npm lockfile (no scripts executed)
+      - name: Install Node dependencies
         working-directory: api
-        run: npm install --package-lock-only --ignore-scripts
+        run: npm install
 
-      - name: Snyk SCA - npm (api/package.json)
+      - name: Snyk SCA - npm
         uses: snyk/actions/node@master
+        working-directory: api
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          args: --file=api/package.json --severity-threshold=high
+          args: --file=package.json --severity-threshold=high
 
       - name: Install Snyk CLI
         if: always()
         uses: snyk/actions/setup@master
 
-      - name: Snyk SCA - pip (worker/requirements.txt)
+      - name: Snyk SCA - pip
         if: always()
         working-directory: worker
         env:
@@ -72,6 +74,7 @@ jobs:
     name: DAST Runtime Verification
     needs: supply-chain-analysis
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -91,7 +94,7 @@ jobs:
       - name: OWASP ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.12.0
         with:
-          target: 'http://localhost:8080'
+          target: "http://localhost:8080"
           allow_issue_writing: false
           fail_action: true
 
