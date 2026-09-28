@@ -8,7 +8,7 @@ app = Flask(__name__)
 WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "http://localhost:9000/hook")
 
 with open(os.path.join(os.path.dirname(__file__), "config.yml")) as f:
-    CONFIG = yaml.load(f)  # old PyYAML API: no explicit Loader
+    CONFIG = yaml.safe_load(f)  # old PyYAML API: no explicit Loader
 
 TEMPLATE = "Reminder for {{ user }}: task {{ task_id }} is due soon."
 

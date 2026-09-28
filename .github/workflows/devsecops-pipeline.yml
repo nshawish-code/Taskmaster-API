@@ -1,53 +1,90 @@
-name: DevSecOps Pipeline
+name: DevSecOps Security Delivery Gate
 
 on:
   push:
+    branches: [main]
   pull_request:
-    branches:
-      - main
+    branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
-  security:
+  supply-chain-analysis:
+    name: Software Supply Chain Analysis
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Set up Node 18
         uses: actions/setup-node@v4
         with:
           node-version: 18
 
-      - name: Install Node dependencies
+      - name: Generate npm lockfile (no scripts executed)
         working-directory: api
-        run: npm install
+        run: npm install --package-lock-only --ignore-scripts
 
-      - name: Run npm audit
-        working-directory: api
-        run: npm audit --audit-level=high
-        continue-on-error: true
-
-      - name: OWASP Dependency-Check
-        uses: dependency-check/Dependency-Check_Action@main
-        with:
-          project: "TaskMaster-API"
-          path: "."
-          format: "HTML"
-          out: "dependency-check-report"
-
-      - name: Run Snyk
+      - name: Snyk SCA - npm (api/package.json)
         uses: snyk/actions/node@master
-        with:
-          args: --file=api/package.json --severity-threshold=high
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --file=api/package.json --severity-threshold=high
 
-      - name: Build and start application
+      - name: Snyk SCA - pip (worker/requirements.txt)
+        if: always()
+        uses: snyk/actions/python@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --file=worker/requirements.txt --package-manager=pip --skip-unresolved --severity-threshold=high
+
+      - name: OWASP Dependency-Check
+        if: always()
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: TaskMaster-API
+          path: .
+          format: HTML
+          out: reports
+          args: --failOnCVSS 7
+
+      - name: Upload Dependency-Check report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: reports
+
+  dast:
+    name: DAST Runtime Verification
+    needs: supply-chain-analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build and start containers
         run: docker compose up -d --build
 
-      - name: ZAP Baseline Scan
+      - name: Wait for API to be healthy
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8080/health && exit 0
+            sleep 2
+          done
+          docker compose logs
+          exit 1
+
+      - name: OWASP ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.12.0
         with:
-          target: "http://localhost:8080"
+          target: 'http://localhost:8080'
           allow_issue_writing: false
+          fail_action: true
+
+      - name: Tear down
+        if: always()
+        run: docker compose down

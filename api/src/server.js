@@ -1,5 +1,6 @@
-// Legacy-style Express service (callbacks, var, no async/await)
+// TaskMaster API - hardened: helmet, no Mongoose callbacks (removed in Mongoose 7+), safe body handling
 var express = require('express');
+var helmet = require('helmet');
 var bodyParser = require('body-parser');
 var mongoose = require('mongoose');
 var jwt = require('jsonwebtoken');
@@ -8,12 +9,20 @@ var moment = require('moment');
 var axios = require('axios');
 
 var app = express();
-app.use(bodyParser.json());
+app.disable('x-powered-by');
+app.use(helmet());
+app.use(function (req, res, next) {
+  res.set('Permissions-Policy', 'geolocation=(), camera=(), microphone=()');
+  res.set('Cache-Control', 'no-store');
+  next();
+});
+app.use(bodyParser.json({ limit: '100kb' }));
 
 var SECRET = process.env.JWT_SECRET || 'change-me-lab-only';
 var WORKER_URL = process.env.WORKER_URL || 'http://localhost:5000';
 
-mongoose.connect(process.env.MONGO_URL || 'mongodb://localhost:27017/taskmaster');
+mongoose.connect(process.env.MONGO_URL || 'mongodb://localhost:27017/taskmaster')
+  .catch(function (err) { console.error('Mongo connection error:', err.message); });
 
 var Task = mongoose.model('Task', new mongoose.Schema({
   title: String,
@@ -25,7 +34,7 @@ var Task = mongoose.model('Task', new mongoose.Schema({
 
 function auth(req, res, next) {
   var h = req.headers.authorization || '';
-  jwt.verify(h.replace('Bearer ', ''), SECRET, function (err, user) {
+  jwt.verify(h.replace('Bearer ', ''), SECRET, { algorithms: ['HS256'] }, function (err, user) {
     if (err) return res.status(401).json({ error: 'unauthorized' });
     req.user = user;
     next();
@@ -43,18 +52,17 @@ app.post('/login', function (req, res) {
 });
 
 app.get('/tasks', auth, function (req, res) {
-  Task.find({ owner: req.user.sub }, function (err, tasks) {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(tasks);
-  });
+  Task.find({ owner: req.user.sub })
+    .then(function (tasks) { res.json(tasks); })
+    .catch(function (err) { res.status(500).json({ error: err.message }); });
 });
 
 app.post('/tasks', auth, function (req, res) {
-  var data = _.merge({ owner: req.user.sub }, req.body);
-  Task.create(data, function (err, task) {
-    if (err) return res.status(500).json({ error: err.message });
-    res.status(201).json(task);
-  });
+  // whitelist fields; owner always comes from the token, never from the body
+  var data = _.assign(_.pick(req.body, ['title', 'due', 'meta', 'done']), { owner: req.user.sub });
+  Task.create(data)
+    .then(function (task) { res.status(201).json(task); })
+    .catch(function (err) { res.status(500).json({ error: err.message }); });
 });
 
 app.post('/tasks/:id/remind', auth, function (req, res) {
