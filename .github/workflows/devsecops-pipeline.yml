@@ -32,6 +32,12 @@ jobs:
         working-directory: api
         run: npm install
 
+      - name: Install Python dependencies
+        working-directory: worker
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
       - name: Install Snyk CLI
         uses: snyk/actions/setup@master
 
@@ -47,7 +53,7 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: |
-          snyk test --file=requirements.txt --package-manager=pip --skip-unresolved --severity-threshold=high
+          snyk test --file=requirements.txt --package-manager=pip --command=python3 --skip-unresolved --severity-threshold=high
 
       - name: OWASP Dependency-Check
         if: always()
