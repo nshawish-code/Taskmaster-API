@@ -26,6 +26,9 @@ app.use(helmet({
   }
 }));
 app.use(function (req, res, next) {
+  res.set('Cross-Origin-Opener-Policy', 'same-origin');
+  res.set('Cross-Origin-Embedder-Policy', 'require-corp');
+  res.set('Cross-Origin-Resource-Policy', 'same-origin');
   res.set('Permissions-Policy', 'geolocation=(), camera=(), microphone=()');
   res.set('Cache-Control', 'no-store');
   next();
