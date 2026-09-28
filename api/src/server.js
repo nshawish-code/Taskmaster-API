@@ -10,7 +10,21 @@ var axios = require('axios');
 
 var app = express();
 app.disable('x-powered-by');
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'"],
+      imgSrc: ["'self'"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"]
+    }
+  }
+}));
 app.use(function (req, res, next) {
   res.set('Permissions-Policy', 'geolocation=(), camera=(), microphone=()');
   res.set('Cache-Control', 'no-store');
@@ -40,6 +54,18 @@ function auth(req, res, next) {
     next();
   });
 }
+
+app.get('/', function (req, res) {
+  res.json({ status: 'ok', name: 'TaskMaster API' });
+});
+
+app.get('/robots.txt', function (req, res) {
+  res.type('text/plain').send('User-agent: *\nDisallow: /');
+});
+
+app.get('/sitemap.xml', function (req, res) {
+  res.type('application/xml').send('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>');
+});
 
 app.get('/health', function (req, res) {
   res.json({ status: 'ok', time: moment().format() });
