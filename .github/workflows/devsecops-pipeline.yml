@@ -22,6 +22,11 @@ jobs:
         with:
           node-version: 18
 
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Generate npm lockfile (no scripts executed)
         working-directory: api
         run: npm install --package-lock-only --ignore-scripts
@@ -33,13 +38,18 @@ jobs:
         with:
           args: --file=api/package.json --severity-threshold=high
 
+      - name: Install Snyk CLI
+        if: always()
+        uses: snyk/actions/setup@master
+
       - name: Snyk SCA - pip (worker/requirements.txt)
         if: always()
-        uses: snyk/actions/python@master
+        working-directory: worker
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: --file=worker/requirements.txt --package-manager=pip --skip-unresolved --severity-threshold=high
+        run: |
+          pip install -r requirements.txt
+          snyk test --file=requirements.txt --package-manager=pip --severity-threshold=high
 
       - name: OWASP Dependency-Check
         if: always()

@@ -1,40 +1,44 @@
-# TaskMaster-API (legacy)
+# TaskMaster-API
 
-A deliberately **aging** cloud service used as a realistic target for dependency
-management, software composition analysis (SCA), and upgrade-planning exercises.
+REST API with a background worker, used as a lab target for software supply chain
+security (SCA, DAST) and configuration hardening. This fork has been remediated:
+dependencies upgraded, runtimes moved off end-of-life versions, containers run as
+non-root, and a GitHub Actions security gate is in place.
 
-> ⚠️ Do NOT deploy this to a public network. It pins old, known-vulnerable
-> package versions on purpose. Run it only in an isolated lab.
+> The `LEGACY_NOTES.md` file in `docs/` describes the original, intentionally outdated versions.
 
 ## Architecture
 
-| Component | Stack | Path |
-|-----------|-------|------|
-| REST API  | Node.js 8 / Express 4.16 | `api/` |
-| Worker    | Python 3.6 / Flask 0.12  | `worker/` |
-| Datastore | MongoDB 3.6 (docker-compose) | - |
+| Component | Stack                          | Path      |
+| --------- | ------------------------------ | --------- |
+| REST API  | Node.js 24 / Express 4.22      | `api/`    |
+| Worker    | Python 3.12 / Flask 3.1        | `worker/` |
+| Datastore | MongoDB 7.0 (docker compose)   | -         |
 
 The API accepts tasks (`/tasks`) and hands reminder/report jobs to the worker
 (`/jobs`), which renders templates and posts to a webhook.
 
-## Quick start (lab only)
+## Quick start
 
-```bash
-docker-compose up --build
-curl localhost:3000/health
-curl localhost:5000/health
+```
+docker compose up --build
+curl http://localhost:8080/health      # API (container port 3000)
+curl http://localhost:5000/health      # worker
 ```
 
-## Suggested exercises
+## Security pipeline
 
-1. Run `npm audit` in `api/` and `pip-audit -r worker/requirements.txt` (or
-   `safety check`, OWASP Dependency-Check, Trivy, Grype) and record findings.
-2. Build an inventory / SBOM (`cyclonedx-npm`, `cyclonedx-py`, or `syft`).
-3. Triage: which findings are reachable from the code in `api/src` and `worker/`?
-4. Plan the upgrade: which bumps are patch/minor/major? What breaks?
-5. Fix the runtime EOLs (Node 8, Python 3.6, Mongo 3.6) and update the Dockerfiles.
-6. Add a CI gate that fails on high/critical findings.
+`.github/workflows/devsecops-pipeline.yml` ("DevSecOps Security Delivery Gate") runs on
+push and pull requests to `main`:
 
-See `docs/LEGACY_NOTES.md` for the intentionally outdated items and the
-version that fixes each. Verify current advisories with your scanner; the
-database changes over time.
+1. **Software Supply Chain Analysis**: Snyk (npm and pip) and OWASP Dependency-Check.
+   The build fails on High/Critical findings.
+2. **DAST Runtime Verification**: builds the stack with Docker Compose and runs an
+   OWASP ZAP baseline scan against `http://localhost:8080`.
+
+## Hardening applied
+
+- Direct npm and pip dependencies upgraded; transitive `qs` forced via npm `overrides`.
+- `helmet` security headers, `X-Powered-By` disabled.
+- API and worker containers run as a non-root user; `npm ci` with a lockfile.
+- Runtimes moved from Node 8 / Python 3.6 / MongoDB 3.6 to supported versions.
