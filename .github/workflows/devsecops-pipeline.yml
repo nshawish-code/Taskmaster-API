@@ -39,6 +39,6 @@ jobs:
       - name: Run Snyk
         uses: snyk/actions/node@master
         with:
-          args: --severity-threshold=high
+          args: --file=api/package.json --severity-threshold=high
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
