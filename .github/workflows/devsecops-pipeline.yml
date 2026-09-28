@@ -93,6 +93,9 @@ jobs:
           docker compose logs
           exit 1
 
+      - name: Prepare workspace permissions for ZAP
+        run: chmod -R 777 ${{ github.workspace }}
+
       - name: OWASP ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.12.0
         with:
