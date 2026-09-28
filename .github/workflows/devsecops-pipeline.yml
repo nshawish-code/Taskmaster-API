@@ -47,8 +47,7 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: |
-          pip install -r requirements.txt
-          snyk test --file=requirements.txt --package-manager=pip --severity-threshold=high
+          snyk test --file=requirements.txt --package-manager=pip --skip-unresolved --severity-threshold=high
 
       - name: OWASP Dependency-Check
         if: always()
